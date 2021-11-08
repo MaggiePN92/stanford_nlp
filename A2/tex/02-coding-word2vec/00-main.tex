@@ -1,0 +1,45 @@
+\section{Coding: Implementing word2vec}
+In this part you will implement the word2vec model and train your own word vectors with stochastic gradient descent (SGD). Make sure to take a look at the equations presented in sections 2 and 3, especially \textbf{equations (3) for gradient (of loss function $\bm J_{\text{naive-softmax}}(\bm v_c, o, \bm U)$) with respect to $\bm v_c$ and (6) for gradient with respect to each of the `outside' word vectors, $\bm u_w$'s} which we'll be using in our gradient calculation code. 
+
+\textit{\textbf{Note}: A2 code can be found here : \url{https://github.com/scpd-proed/XCS224N-A2}}
+
+\begin{enumerate}[(a)]
+    % Question 1-A
+    \item \points{2a} First, implement the |sigmoid()| function in \texttt{src-word2vec/submission.py} to apply the sigmoid function to an input vector. In the same file, fill in the implementation for the |naive_softmax_loss_and_gradient()| function. Then, fill in the implementation of the loss and gradient functions for the skip-gram model (|skipgram()|).\newline
+    To complete these steps you will need to refer to Sections 2 and 3, Equations (3) and (6).\newline
+    
+    \textbf{Pseudo code for skip-gram}
+    
+    \begin{algorithm}
+    \caption{Skipgram}
+    \begin{algorithmic}
+    \Procedure{skipgram}{$outside\_words, loss\_and\_gradient\_func, **kwargs$}\Comment{The center word vector}
+        
+        \State {$loss$ $\gets$ {$0$}}
+        \State {$grad\_center$ $\gets$ {$np.zeros(*args)$}}
+        \State {$grad\_outside$ $\gets$ {$np.zeros(*args)$}}
+        
+        \For{\texttt{word in outside\_words}}\Comment{Iterate over outside words}
+            \State $loss\_current, gradc, grado \gets loss\_and\_gradient\_func(**kwargs)$
+            \State {$loss$ $\gets$ {$loss + loss\_current$}}\Comment{Loss is accumulated}
+            \State {$grad\_center$ $\gets$ {$grad\_center + gradc$}}
+            \State {$grad\_outside$ $\gets$ {$grad\_outside + grado$}}
+                    \EndFor
+    \State \textbf{return} $loss, grad\_center, grad\_outside$\Comment{Return loss and gradients}\EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+
+    % Question 1-B
+    \item \points{2b} Complete the implementation for your SGD optimizer in the |sgd()| function in |src-word2vec/submission.py|.
+    
+    % Question 1-C
+    \item \points{2c} Show time! Now we are going to load some real data and train word vectors with everything you just implemented! We are going to use the Stanford Sentiment Treebank (SST) dataset to train word vectors, and later apply them to a simple sentiment analysis task. There is no additional code to write for this part; just run \texttt{python run.py}.
+            
+    \emph{Note: The training process may take a long time depending on the efficiency of your implementation \textbf{(an efficient implementation takes approximately an hour)}. Plan accordingly!}
+
+    %\emph{Additional Note: Although you have implemented the naive\_softmax\_loss\_and\_gradient function, to make sure that the code converges faster do not forget to switch the loss function to neg\_sampling\_loss\_and\_gradient (the implementation for this has been provided in \textbf{word2vec.py}) in the function call for \textbf{sgd(**kwargs)} in the file \textbf{run.py}}
+    
+        After 40,000 iterations, the script will finish and a visualization for your word vectors will appear. It will also be saved as \texttt{word\_vectors.png} and the corresponding wordvectors as \texttt{sample\_vectors\_(soln).json} in your project directory.
+
+        \textbf{You must upload the generated \texttt{sample\_vectors\_(soln).json} along with \texttt{src-word2vec/submission.py} to achieve full credit.}
+\end{enumerate}

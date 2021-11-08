@@ -1,0 +1,80 @@
+\section{Appendix (Extra Knowledge In Case You're Curious!)}
+Negative sampling is briefly introduced in Lecture 2: Word2Vec: Model Variants and an implementation is provided in the Assignment 2 coding assignment. For detailed notes on the math behind negative sampling, see below.
+\begin{enumerate}
+    \item Negative Sampling loss is an alternative to the Naive Softmax loss.  Assume that $K$ negative samples (words) are drawn from the vocabulary. For simplicity of notation we shall refer to them as $w_1, w_2, \dots, w_K$ and their outside vectors as $\bm u_1, \dots, \bm u_K$. 
+        Note that $o\notin\{w_1, \dots, w_K\}$. 
+        For a center word $c$ and an outside word $o$, the negative sampling loss function is given by:
+
+        \begin{equation}
+        \bm J_{\text{neg-sample}}(\bm v_c, o, \bm U) = -\log(\sigma(\bm u_o^\top \bm v_c)) - \sum_{k=1}^K \log(\sigma(-\bm u_k^\top \bm v_c))
+        \end{equation}
+        for a sample $w_1, \ldots w_K$, where $\sigma(\cdot)$ is the sigmoid function.\footnote{Note: the loss function here is the negative of what Mikolov et al.\ had in their original paper, because we are doing a minimization instead of maximization in our assignment code. Ultimately, this is the same objective function.}
+
+        Below we compute the partial derivatives of $\bm J_{\text{neg-sample}}$ with respect to $\bm v_c$, with respect to $\bm u_o$, and with respect to a negative sample $\bm u_k$.
+
+        %%SOLUTION STARTS FOR APPENDIX ITEM
+        \begin{answer}
+            \begin{equation*}
+                \begin{aligned}
+                    {\partial J \over \partial \bm v_c} &= -\frac{1}{\sigma(\bm u_o^\top \bm v_c)} \times {\partial \over \partial \bm v_c} \sigma(\bm u_o^\top \bm v_c) - \sum_{k=1}^K \frac{1}{\sigma(- \bm u_k^\top \bm v_c)} \times {\partial \over \partial \bm v_c} \sigma(- \bm u_k^\top \bm v_c) && \text{(chain rule on $\log$)}\\
+                    &= -\frac{\sigma(\bm u_o^\top \bm v_c) (1 - \sigma(\bm u_o^\top \bm v_c))\bm u_o}{\sigma(\bm u_o^\top \bm v_c)} - \sum_{k=1}^K -\frac{\sigma(-\bm u_k^\top \bm v_c) (1 - \sigma(-\bm u_k^\top \bm v_c))\bm u_k}{\sigma(-\bm u_k^\top \bm v_c)} && \text{(chain rule on $\sigma$)}\\
+                    &= -(1 - \sigma(\bm u_{o}^\top \bm v_c))\bm u_o - \sum_{k=1}^K -(1 - \sigma(-\bm u_{k}^\top \bm v_c) )\bm u_{k} && \text{(cancel)}\\
+                    &= (\sigma(\bm u_{o}^\top \bm v_c) - 1)\bm u_o - \sum_{k=1}^K (\sigma(-\bm u_{k}^\top \bm v_c) - 1)\bm u_{k} && \text{(rearrange)}
+                \end{aligned}
+                \end{equation*}
+                Secondly:
+                \begin{equation*}
+                \begin{aligned}
+                    {\partial J \over \partial \bm u_{o}} &= {\partial \over \partial \bm u_o} \bigg( -\log(\sigma(\bm u_o^\top \bm v_c)) \bigg) \\
+                    &= - \frac{1}{\sigma(\bm u_o^\top \bm v_c)} \times {\partial \over \partial \bm u_o} \bigg( \sigma(\bm u_o^\top \bm v_c) \bigg) && \text{(chain rule on $\log$)} \\
+                    &=  -\frac{\sigma(\bm u_o^\top \bm v_c) (1 - \sigma(\bm u_o^\top \bm v_c))\bm v_c}{\sigma(\bm u_o^\top \bm v_c)} && \text{(chain rule on $\sigma$)} \\
+                    &= -(1 - \sigma(\bm u_o^\top \bm v_c))\bm v_c && \text{(cancel)} \\
+                    &= (\sigma(\bm u_{o}^\top \bm v_c) - 1) \bm v_c && \text{(rearrange)} \\
+                \end{aligned}
+                \end{equation*}
+                Thirdly, for all $k=1,2,\dots,K$:
+                \begin{equation*}
+                \begin{aligned}
+                    {\partial J \over \partial \bm u_{k}} &=
+                    {\partial \over \partial \bm u_k} \bigg( -\log(\sigma(- \bm u_k^\top \bm v_c)) \bigg) \\
+                    &=
+                    \frac{1}{\sigma(- \bm u_k^\top \bm v_c)} \times {\partial \over \partial \bm u_k} \bigg(\sigma(- \bm u_k^\top \bm v_c)) \bigg) && \text{(chain rule on $\log$)} \\
+                    &= \frac{\sigma(-\bm u_k^\top \bm v_c) (1 - \sigma(-\bm u_k^\top \bm v_c))\bm v_c}{\sigma(-\bm u_k^\top \bm v_c)} && \text{(chain rule on $\sigma$)} \\
+                    &= (1 - \sigma(-\bm u_{k}^\top \bm v_c)) \bm v_c && \text{(cancel)}
+                \end{aligned}
+                \end{equation*}
+                The naive-softmax loss contains a summation over the entire vocabulary as part of computing the $P(O = o \mid C = c)$ term. Here, we don't do that calculation, approximating it with $K$ samples (where $K$ is much smaller than the vocabulary size).
+        \end{answer}
+        %SOLUTION ENDS FOR APPENDIX ITEMS
+
+    \item Suppose the center word is $c = w_t$ and the context window is $[w_{t-m}$, $\ldots$, $w_{t-1}$, $w_{t}$, $w_{t+1}$, $\ldots$, $w_{t+m}]$, where $m$ is the context window size. Recall that for the  skip-gram version of {\tt word2vec}, the total loss for the context window is:
+        \begin{equation}
+        \bm J_{\textrm{skip-gram}}(\bm v_c, w_{t-m},\ldots w_{t+m}, \bm U) = \sum_{\substack{-m\le j \le m \\ j\ne 0}} \bm J(\bm v_c, w_{t+j}, \bm U)
+        \end{equation}
+        
+        Here, $\bm J(\bm v_c, w_{t+j}, \bm U)$ represents an arbitrary loss term for the center word $c=w_t$ and outside word $w_{t+j}$. $\bm J(\bm v_c, w_{t+j}, \bm U)$ could be $\bm J_{\text{naive-softmax}}(\bm v_c, w_{t+j}, \bm U)$ or $\bm J_{\text{neg-sample}}(\bm v_c, w_{t+j}, \bm U)$, depending on the implementation.
+        
+        The proofs for the three partial derivatives are given below: 
+        \begin{enumerate}[(i)]
+            \item ${\partial \bm J_{\textrm{skip-gram}}(\bm v_c, w_{t-m},\ldots w_{t+m}, \bm U) / \partial \bm U}$
+            \item ${\partial \bm J_{\textrm{skip-gram}}(\bm v_c, w_{t-m},\ldots w_{t+m}, \bm U) / \partial \bm v_c}$
+            \item ${\partial \bm J_{\textrm{skip-gram}}(\bm v_c, w_{t-m},\ldots w_{t+m}, \bm U) / \partial \bm v_w}$ when $w \ne c$
+        \end{enumerate}
+        
+        \textit{ Note that the final derivatives of $\bm J(\bm v_c, w_{t+j}, \bm U)$ with respect to all the model parameters $\bm U$ and $\bm V$ are provided in the appendix part 1 derivation} 
+        
+        %SOLUTION STARTS FOR APPENDIX ITEM
+        \begin{answer}
+            Given a loss function $J$, we already know how to obtain the following derivatives
+            \begin{equation*}
+                {\partial J(\bm v_c, w_{t+j}, \bm U) \over \partial \bm U} \textrm{ and } {\partial J(\bm v_c, w_{t+j}, \bm U) \over \partial \bm v_c}
+            \end{equation*}
+            Therefore, for skip-gram, the gradients for the loss of one context window can be expressed in terms of these:
+            \begin{align*}
+                {\partial J_{\textrm{skip-gram}}(w_{t-m}\ldots w_{t+m}) \over \partial \bm U} &= \sum_{-m \le j \le m, j\ne 0} {\partial J(\bm v_c, w_{t+j}, \bm U) \over \partial \bm U},\\
+                {\partial J_{\textrm{skip-gram}}(w_{t-m}\ldots w_{t+m}) \over \partial \bm v_c} &= \sum_{-m \le j \le m, j\ne 0} {\partial J(\bm v_c, w_{t+j}, \bm U) \over \partial \bm v_c},\\
+                {\partial J_{\textrm{skip-gram}}(w_{t-m}\ldots w_{t+m}) \over \partial \bm v_{w}} &= \bm 0, \textrm{when } w \ne c.
+            \end{align*}
+        \end{answer}
+        %SOLUTION ENDS FOR APPENDIX ITEM
+\end{enumerate}

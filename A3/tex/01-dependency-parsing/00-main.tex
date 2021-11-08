@@ -1,0 +1,101 @@
+\section{Neural Transition-Based Dependency Parsing}
+In this assignment, you will build a neural dependency parser using PyTorch. You will implement and train the dependency parser.
+You'll be implementing a neural-network based dependency parser, with the goal of maximizing performance on the UAS (Unlabeled Attachment Score) metric.\newline
+
+This assignment requires PyTorch without \texttt{CUDA} installed.  GPUs will be necessary in the next two assignments (via \texttt{CUDA}), but are not necessary for this assignment.\newline
+
+A dependency parser analyzes the grammatical structure of a sentence, establishing relationships between \textit{head} words, and words which modify those heads. Your implementation will be a {\it transition-based} parser, which incrementally builds up a parse one step at a time. At every step it maintains a \textit{partial parse}, which is represented as follows
+\begin{itemize}
+    \item A \textit{stack} of words that are currently being processed.
+    \item A \textit{buffer} of words yet to be processed.
+    \item A list of \textit{dependencies} predicted by the parser.
+\end{itemize}
+Initially, the stack only contains ROOT, the dependencies list is empty, and the buffer contains all words of the sentence in order. At each step, the parser applies a \textit{transition} to the partial parse until its buffer is empty and the stack size is 1. The following transitions can be applied:
+\begin{itemize}
+\item \texttt{SHIFT}: removes the first word from the buffer and pushes it onto the stack.
+\item \texttt{LEFT-ARC}: marks the second (second most recently added) item on the stack as a dependent of the first item and removes the second item from the stack.
+\item \texttt{RIGHT-ARC}: marks the first (most recently added) item on the stack as a dependent of the second item and removes the first item from the stack.
+\end{itemize}
+On each step, your parser will decide among the three transitions using a neural network classifier.
+
+\begin{enumerate}[(a)]
+    \item \points{1a} Implement the \texttt{\_\_init\_\_} and \texttt{parse\_step} functions in the \texttt{PartialParse} class in \texttt{src/submission/parser\_transitions.py}. This implements the transition mechanics your parser will use. 
+    
+    \item \points{1b} Our network will predict which transition should be applied next to a partial parse. We could use it to parse a single sentence by applying predicted transitions until the parse is complete. However, neural networks run much more efficiently when making predictions about \textit{batches} of data at a time (i.e., predicting the next transition for any different partial parses simultaneously). We can parse sentences in minibatches with the following algorithm. \newline
+
+    \alglanguage{pseudocode}
+    \begin{algorithm*}[h]
+    \caption{Minibatch Dependency Parsing}
+    \begin{algorithmic}
+    	\State \textbf{Input:} \texttt{sentences}, a list of sentences to be parsed and \texttt{model}, our model that makes parse decisions
+    	%\State
+    	%\State Initialize \texttt{partial\_parses} $\to$ []
+    	%\For{\textbf{each} sentence \texttt{s} in \texttt{sentences}}
+    	%	\State Add a partial parse to \texttt{partial\_parses} with \texttt{stack} = [ROOT], \texttt{buffer} = \texttt{s}, \texttt{dependencies} = []
+    	%\EndFor
+    	\State
+    	\State Initialize \texttt{partial\_parses} as a list of PartialParses, one for each sentence in \texttt{sentences}
+    	\State Initialize \texttt{unfinished\_parses} as a shallow copy of \texttt{partial\_parses}
+    	%\State
+    	\While{\texttt{unfinished\_parses} is not empty}
+    		\State Take the first \texttt{batch\_size} parses in \texttt{unfinished\_parses} as a minibatch
+    		\State Use the \texttt{model} to predict the next transition for each partial parse in the minibatch
+    		\State Perform a parse step on each partial parse in the minibatch with its predicted transition
+    		\State Remove the completed (empty buffer and stack of size 1) parses from \texttt{unfinished\_parses}
+    	\EndWhile
+    	\State
+    	\State \textbf{Return:} The \texttt{dependencies} for each (now completed) parse in \texttt{partial\_parses}.
+    \end{algorithmic}
+    \end{algorithm*}
+    
+    Implement this algorithm in the \texttt{minibatch\_parse} function in \texttt{src/submission/parser\_transitions.py}.
+
+    \textit{Note: You will need \texttt{minibatch\_parse} to be correctly implemented to evaluate the model you will build in part (c). However, you do not need it to train the model, so you should be able to complete most of part (c) even if \texttt{minibatch\_parse} is not implemented yet.} \newline
+    
+    We are now going to train a neural network to predict, given the state of the stack, buffer, and dependencies, which transition should be applied next.
+    First, the model extracts a feature vector representing the current state. We will be using the feature set presented in the original neural dependency parsing paper: \textit{A Fast and Accurate Dependency Parser using Neural Networks}.\footnote{Chen and Manning, 2014, \url{https://nlp.stanford.edu/pubs/emnlp2014-depparser.pdf}} The function extracting these features has been implemented for you in \texttt{src/submission/parser\_utils.py}. This feature vector consists of a list of tokens (e.g., the last word in the stack, first word in the buffer, dependent of the second-to-last word in the stack if there is one, etc.). They can be represented as a list of integers $[w_1, w_2, \dots, w_m]$ where $m$ is the number of features and each $0 \leq w_i <  \vert V \vert$ is the index of a token in the vocabulary ($ \vert V \vert $ is the vocabulary size). First our network looks up an embedding for each word and concatenates them into a single input vector:
+    \begin{center}
+    	$ \mathbf{x} = [\mathbf{E_{w_1}} , ... , \mathbf{E_{w_m}}] \in \mathbb{R}^{dm}$
+    \end{center}
+    where $\mathbf{E} \in \mathbb{R}^{ \vert V \vert \times d}$ is an embedding matrix with each row $\mathbf{E_w}$ as the vector for a particular word $w$. We then compute our prediction as:
+    \begin{center}
+        $ \mathbf{h} = \relu (\mathbf{xW} + \mathbf{b_1})$ \\
+        $ \mathbf{l} = \mathbf{hU} + \mathbf{b_2}$ \\
+        $ \mathbf{\hat{y}} = \smx(l)$\\
+    \end{center}
+    where $\mathbf{h}$ \space is referred to as the hidden layer, $\mathbf{l}$ \space is referred to as the logits, $\mathbf{\hat{y}}$ \space is referred to as the predictions, and $\relu(z) = \max(z, 0)$). We will train the model to minimize cross-entropy loss:
+    \begin{center}
+        $J(\theta) = CE(\mathbf{y}, \mathbf{\hat{y}}) = - \sum_{i=1}^3 y_i \log \hat{y}_i$
+    \end{center}
+    To compute the loss for the training set, we average this $J(\theta)$ across all training examples.
+
+    \item \points{1c} In \texttt{src/submission/parser\_model.py} you will find skeleton code to implement this simple neural network using PyTorch. Complete the \texttt{\_\_init\_\_}, \texttt{embedding\_lookup} and \texttt{forward} functions to implement the model. Then complete the \texttt{train\_for\_epoch} function within the \texttt{src/submission/train.py} file. \newline
+   
+    Finally execute \texttt{python run.py} within the \texttt{src/} subdirectory to train your model and compute predictions
+    on test data from Penn Treebank (annotated with Universal Dependencies). Make sure to turn off debug setting by setting \texttt{debug=False} in the \texttt{main} function of \texttt{run.py}.
+    
+    \textbf{Hints:}
+    \begin{itemize}
+        \item
+            When debugging, set \texttt{debug=True} in the \texttt{main} function of \texttt{src/run.py}. This will cause the code to run over a small subset of the data, so that training the model won't take as long. Make sure to set \texttt{debug=False} to run the full model once you are done debugging.
+
+        \item
+            When running with \texttt{debug=True}, you should be able to get a loss smaller than 0.2 and a UAS larger than 65 on the dev set (although in rare cases your results may be lower, there is some randomness when training).
+            
+        \item It should take about \textbf{1 hour} to train the model on the entire the training dataset, i.e., when \texttt{debug=False}.
+        
+        \item When running with \texttt{debug=False}, you should be able to get a loss smaller than 0.08 on the train set and an Unlabeled Attachment Score larger than 87 on the dev set. For comparison, the model in the original neural dependency parsing paper gets 92.5 UAS. If you want, you can tweak the hyperparameters for your model (hidden layer size, hyperparameters for Adam, number of epochs, etc.) to improve the performance (but you are not required to do so).
+    \end{itemize}
+    \clearpage
+
+    \textbf{Deliverables}
+
+    For this assignment, please submit all files within the |src/submission| subdirectory.  This includes:
+    \begin{itemize}
+        \item |src/submission/__init__.py|
+        \item |src/submission/parser_model.py|
+        \item |src/submission/parser_transitions.py|
+        \item |src/submission/parser_utils.py|
+        \item |src/submission/train.py|
+    \end{itemize}   
+\end{enumerate}
