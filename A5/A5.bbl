@@ -1,0 +1,20 @@
+\begin{thebibliography}{1}
+
+\bibitem{radford2018improving}
+{\sc Radford, A., Narasimhan, K., Salimans, T., and Sutskever, I.}
+\newblock Improving language understanding with unsupervised learning.
+\newblock {\em Technical report, OpenAI\/} (2018).
+
+\bibitem{raffel2020exploring}
+{\sc Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S., Matena, M.,
+  Zhou, Y., Li, W., and Liu, P.~J.}
+\newblock Exploring the limits of transfer learning with a unified text-to-text
+  transformer.
+\newblock {\em Journal of Machine Learning Research 21}, 140 (2020), 1--67.
+
+\bibitem{tay2020synthesizer}
+{\sc Tay, Y., Bahri, D., Metzler, D., Juan, D.-C., Zhao, Z., and Zheng, C.}
+\newblock Synthesizer: Rethinking self-attention in transformer models.
+\newblock {\em arXiv preprint arXiv:2005.00743\/} (2020).
+
+\end{thebibliography}

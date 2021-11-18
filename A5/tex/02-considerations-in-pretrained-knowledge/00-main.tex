@@ -1,0 +1,86 @@
+\graphicspath{ {images/} }
+
+% real numbers R symbol
+% \newcommand{\Real}{\mathbb{R}}
+% \newcommand{\Int}{\mathbb{Z}}
+
+% encoder hidden
+% \newcommand{\henc}{\bh^{\text{enc}}}
+% \newcommand{\hencfw}[1]{\overrightarrow{\henc_{#1}}}
+% \newcommand{\hencbw}[1]{\overleftarrow{\henc_{#1}}}
+
+% encoder cell
+% \newcommand{\cenc}{\bc^{\text{enc}}}
+% \newcommand{\cencfw}[1]{\overrightarrow{\cenc_{#1}}}
+% \newcommand{\cencbw}[1]{\overleftarrow{\cenc_{#1}}}
+
+% decoder hidden
+% \newcommand{\hdec}{\bh^{\text{dec}}}
+
+% decoder cell
+% \newcommand{\cdec}{\bc^{\text{dec}}}
+
+% make it possible to copy/paste from code snippets without strange extra spaces or line numbers:
+% https://tex.stackexchange.com/questions/4911/phantom-spaces-in-listings
+\lstset{basicstyle=\ttfamily,columns=flexible,numbers=none}
+
+\section{Considerations in pretrained knowledge}
+% \begin{parts}
+
+In this section, we are giving you the intuitions and considerations from the pretrained Transformer coding in the previous section.
+
+These are not graded and we encourage you to read the following questions and answers.
+
+\begin{enumerate}[(a)]
+
+% ISS
+% \part[1]
+\item
+Succinctly explain why the pretrained (vanilla) model was able to achieve a higher accuracy than the accuracy of the non-pretrained.
+
+\begin{answer}
+Pretraining, with some probability, masks out the name of a person while providing the birth place, or masks out the birth place while providing the name -- this teaches the model to associate the names with the birthplaces.
+At finetuning time, this information can be accessed, since it has been encoded in the parameters (the initialization.)
+Without pretraining, there's no way for the model to for the model to have any knowledge of the birth places of people that weren't in the finetuning training set, so it can't get above a simple heuristic baseline (like the London baseline.)
+\end{answer}
+
+% ISS
+% \part[2]
+\item
+Take a look at some of the correct predictions of the pretrain+finetuned vanilla model, as well as some of the errors.
+We think you'll find that it's impossible to tell, just looking at the output, whether the model \textit{retrieved} the correct birth place, or \textit{made up} an incorrect birth place.
+Consider the implications of this for user-facing systems that involve pretrained NLP components.
+Come up with two reasons why this indeterminacy of model behavior may cause concern for such applications.
+
+\begin{answer}
+There is a large space of possible reasons indeterminacy could cause concern for user-facing applications. We deducted points if the two provided reasons were too similar, or if one followed directly from the other. For example, ``the user won't know when the system is wrong'' and ``the user will make incorrect decisions based on false information'' is really cause-and-effect rather than two distinct reasons for concern. Answers about general issues such as low accuracy were also not accepted.
+Here are some possible answers:
+
+\begin{enumerate}
+\item Users will always get outputs that look valid (if the user doesn't know the real answer) and so won't be able to perform quality estimation themselves (like one sometimes can when, e.g., a translation seems nonsensical). System designers also don't have a way of filtering outputs for low-confidence predictions. Users may believe invalid answers and make incorrect decisions (or inadvertently spread disinformation) as a result.
+\item Once users realize the system can output plausible but incorrect answers, they may stop trusting the system, therefore making it useless.
+\item Models will not indicate that they simply do not know the birth place of a person (unlike a relational database or similar, which will return that the knowledge is not contained in it). This means the system cannot indicate a question is unanswerable.
+\item Made up answers could be biased or offensive.
+\item There is little avenue for recourse if users believe an answer is wrong, as it's impossible to determine the reasoning of the model is retrieving some gold standard knowledge (in which case the user's request to change the knowledge should be rejected), or just making up something (in which case the user's request to change the knowledge should be granted).
+\end{enumerate}
+\end{answer}
+
+% ISS
+% \part[2]
+\item
+If your model didn't see a person's name at pretraining time, and that person was not seen at fine-tuning time either, it is not possible for it to have ``learned'' where they lived.
+Yet, your model will produce \textit{something} as a predicted birth place for that person's name if asked.
+Concisely describe a strategy your model might take for predicting a birth place for that person's name, and one reason why this should cause concern for the use of such applications.
+\end{enumerate}
+
+\begin{answer}
+\begin{enumerate}
+\item The model could use character-level phonetic-like (sound-like) information to make judgments about where a person was born based on how their name ``sounds'', likely leading to racist outputs.
+\item The model could learn that certain names or types of names tend to be of people born in richer cities, leading to classist outputs that predict a birth place simply based on whether the names are like that of rich people or poorer people.
+\end{enumerate}
+\end{answer}
+
+% \end{parts}
+
+
+ 

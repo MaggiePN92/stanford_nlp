@@ -1,0 +1,294 @@
+\graphicspath{ {images/} }
+
+% real numbers R symbol
+% \newcommand{\Real}{\mathbb{R}}
+% \newcommand{\Int}{\mathbb{Z}}
+
+% encoder hidden
+% \newcommand{\henc}{\bh^{\text{enc}}}
+% \newcommand{\hencfw}[1]{\overrightarrow{\henc_{#1}}}
+% \newcommand{\hencbw}[1]{\overleftarrow{\henc_{#1}}}
+
+% encoder cell
+% \newcommand{\cenc}{\bc^{\text{enc}}}
+% \newcommand{\cencfw}[1]{\overrightarrow{\cenc_{#1}}}
+% \newcommand{\cencbw}[1]{\overleftarrow{\cenc_{#1}}}
+
+% decoder hidden
+% \newcommand{\hdec}{\bh^{\text{dec}}}
+
+% decoder cell
+% \newcommand{\cdec}{\bc^{\text{dec}}}
+
+\newcommand{\mingpt}{\texttt{minGPT}\xspace}
+\newcommand{\ourmodel}{\texttt{minLinT5}\xspace}
+
+% make it possible to copy/paste from code snippets without strange extra spaces or line numbers:
+% https://tex.stackexchange.com/questions/4911/phantom-spaces-in-listings
+\lstset{basicstyle=\ttfamily,columns=flexible,numbers=none}
+
+\section{Pretrained Transformer models and knowledge access}
+\label{sec:char_enc}
+% \begin{parts}
+
+%This part of the assignment serves two purposes.
+%The first purpose is to be an introduction to relatively realistic research in NLP: you'll start with a codebase that is functional for one use, and modify it for another.
+
+%The second purpose is to introduce you to cutting-edge ideas in the \textit{pretrain-finetune} process.
+You'll train a Transformer to perform a task that involves accessing knowledge about the world -- knowledge which isn't provided via the task's training data (at least if you want to generalize outside the training set). You'll find that it more or less fails entirely at the task.
+You'll then learn how to pretrain that Transformer on Wikipedia text that contains world knowledge, and find that finetuning that Transformer on the same knowledge-intensive task enables the model to access some of the knowledge learned at pretraining time.
+You'll find that this enables models to perform considerably above chance on a held out development set.
+
+%This part of the assignment is intended to be a soft introduction to research and practice in natural language processing, as well as .
+%You'll start with a codebase that is fully functional for one purpose, and repurpose it for another task.
+
+The code you're provided with is a fork of Andrej Karpathy's \href{https://github.com/karpathy/minGPT}{\mingpt}.
+It's nicer than most research code in that it's relatively simple and transparent.
+The ``GPT'' in \mingpt refers to the Transformer language model of OpenAI, originally described in \href{https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf}{this paper} \cite{radford2018improving}.
+
+%Your overall goal is to repurpose this codebase with its Jupyter notebook for language modeling to build a small \textit{Text-to-text-transfer-transformer} (or, \textsc{T5})-style encoder-decoder model, 
+
+As in previous assignments, you will want to develop on your machine locally, then run training on Azure. You can use the same conda environment from previous assignments for local development, and the same process for training on Azure (see the \textit{Practical Guide for Using the VM} section of the \href{https://docs.google.com/document/d/10J520Vnb1LnAMo0qgSYpG5cEEbomqQ371NIqg1IAv-4/edit?usp=sharing}{XCS224N Azure Guide} for a refresher). You might find the troubleshooting section useful if you see any issue in conda environment and GPU usage. Specifically, you'll still be running ``\texttt{conda activate XCS224N\_GPU}'' on the Azure machine. You'll need around 5 hours for training, so budget your time accordingly!
+
+Your work with this codebase is as follows:
+
+\begin{enumerate}[(a)]
+% \begin{parts}
+% ISS
+% \part[0]
+\item \points{1a} \textbf{Review the minGPT demo code.}\\
+In  the \texttt{src/submission/mingpt-demo/} folder, there is a Jupyter notebook (\texttt{play\_char.ipynb}) that trains and samples from a Transformer language model.
+Take a look at it locally on your computer and you might need to install Jupyter notebootk \texttt{pip install jupyter} to get somewhat familiar with the code how it defines and trains models. You don't need to run the train locally, because training will take long time on CPU only local environment.
+Some of the code you are writing below will be inspired by what you see in this notebook.
+
+Note that you do not have to write any code or submit written answers for this part.
+%If you want to run it, you'll need
+
+%Demo code is ready to run; go to the \texttt{mingpt-demo/} folder, run the Jupyter notbook \texttt{play\_char.ipynb} and walk through the steps to train a Transformer language model on some text of your choice.\footnote{Feel free to change the transformer size, as well as the number of training epochs, so that you can train on your computer. This is just to get you somewhat familiar with this code!}
+%Paste a short snippet of the generated text here, and concisely describe the domain (source of text) the language model was trained on.
+%Look at the similarity between the snippet you generated and the text you trained the model on.
+%Based on this similarity, make a brief (two-sentence) argument as to whether the model is likely to be \textit{overfit} or \textit{underfit} (or just right, but that's unlikely.)
+
+
+% ISS
+% \part[0]
+\item \points{1b} \textbf{Read through \texttt{NameDataset} in \texttt{src/submission/dataset.py}, our dataset for reading name-birth place pairs.}\\
+The task we'll be working on with our pretrained models is attempting to access the birth place of a notable person, as written in their Wikipedia page.
+We'll think of this as a particularly simple form of question answering:
+\begin{quote}
+    \textit{Q: Where was \textit{[person]} born?}\\
+    \textit{A: [place]}
+\end{quote}
+%In \texttt{mingpt/play\_char.ipynb}, you're provided with the class \texttt{CharDataset}, which provides input and target tensors for training the GPT model.
+From now on, you'll be working with the \texttt{src/submission} folder. \textbf{The code in \texttt{mingpt-demo/} won't be changed or evaluated for this assignment.}
+In \texttt{dataset.py}, 
+%you'll take inspiration from \texttt{CharDataset}, and create the class \texttt{NameDataset}, which reads a TSV of name/place pairs and produces examples that we can feed to our Transformer model.
+you'll find the the class \texttt{NameDataset}, which reads a TSV (tab-separated values) file of name/place pairs and produces examples of the above form that we can feed to our Transformer model.
+
+%Follow the instructions there; this part is an intermediate step that will be graded via Part~\ref{part_predictions_nopretraining}.
+
+To get a sense of the examples we'll be working with, if you run the following code, it'll load your \texttt{NameDataset} on the training set \texttt{birth\_places\_train.tsv} and print out a few examples.
+\begin{lstlisting}[language=bash]
+    cd src/submission
+    python dataset.py namedata 
+\end{lstlisting}
+
+Note that you do not have to write any code or submit written answers for this part.
+
+% ISS
+% \part[0]
+\item \points{1c} \textbf{Implement finetuning (without pretraining).}\\
+Take a look at \texttt{src/submission/helper.py}. It has some skeleton code you will implement to \textit{pretrain} and \textit{finetune} a model. For now, we'll focus on the finetuning function, in the case without pretraining.
+
+Taking inspiration from the training code in the \texttt{play\_char.ipynb} file, write code to finetune a Transformer model on the name/birth place dataset, via examples from the \texttt{NameDataset} class. For now, implement the case without pretraining (i.e. create a model from scratch and train it on the birth-place prediction task from part (b)). You'll have to modify three sections, marked \texttt{[part c]} in the code: one to initialize the model, one to finetune it, and one to train it. Note that you only need to initialize the model in the case labeled ``vanilla'' for now (later in section (g), we will explore a model variant).
+Use the hyperparameters for the \texttt{Trainer} specified in the \texttt{src/submission/helper.py} code.
+
+Also take a look at the \textit{evaluation} code which has been implemented for you. It samples predictions from the trained model and calls \texttt{evaluate\_places()} to get the total percentage of correct place predictions. You will run this code in part (d) to evaluate your trained models.
+%Also fill in the portion for \textit{evaluation}, using the function \texttt{evaluate\_places}.
+%Here, take note of the code in \texttt{play\_char.ipynb} that samples from the trained model, and repurpose it to make a prediction with the model for the name/place task.
+
+Note that this is an intermediate step for later portions, including Part~\ref{part_predictions_nopretraining}, which contains commands you can run to check your implementation. No written answer is required for this part.
+%; see there as well as \texttt{run.py}.
+
+% ISS
+%\part[5]
+\item \points{1d} \textbf{Make predictions (without pretraining).}\label{part_predictions_nopretraining}\\ 
+Train your model on \texttt{birth\_places\_train.tsv}, and evaluate on \texttt{birth\_dev.tsv} and \texttt{birth\_test.tsv}. Specifically, you should now be able to run the following three commands:
+\begin{lstlisting}[language=bash]
+# Train on the names dataset
+./run.sh vanilla_finetune_without_pretrain
+        
+# Evaluate on the dev set, writing out predictions
+./run.sh vanilla_eval_dev_without_pretrain
+        
+# Evaluate on the test set, writing out predictions
+./run.sh vanilla_eval_test_without_pretrain
+\end{lstlisting}
+
+Training will take less than 10 minutes (on Azure). Your grades will be based on the output files from the run.
+
+Don't be surprised if the evaluation result is well below 10\%; we will be digging into why in Part 2. As a reference point, we want to also calculate the accuracy the model would have achieved if it had just predicted ``London'' as the birth place for everyone in the dev set. 
+
+%For this part our submission script will be collecting \texttt{vanilla.model.params}, \texttt{vanilla.nopretrain.dev.predictions}, and \texttt{vanilla.nopretrain.test.predictions}.
+%We've provided, in \texttt{utils.py}, the function \texttt{evaluate\_places}, which we'll use to compare your predicted birth places to the true ones.
+
+% ISS
+% \part[10]
+\item \points{1e}  \textbf{Define a \textit{span corruption} function for pretraining.}\\
+In the file \texttt{src/submission/dataset.py}, implement the \texttt{\_\_getitem\_\_()} function for the dataset class \\
+\texttt{CharCorruptionDataset}.
+Follow the instructions provided in the comments in \texttt{dataset.py}.
+Span corruption is explored in the \href{https://arxiv.org/pdf/1910.10683.pdf}{T5 paper} \cite{raffel2020exploring}.
+It randomly selects spans of text in a document and replaces them with unique tokens (noising).
+Models take this noised text, and are required to output a pattern of each unique sentinel followed by the tokens that were replaced by that sentinel in the input.
+In this question, you'll implement a simplification that only masks out a single sequence of characters.
+
+This question will be graded via autograder based on your whether span corruption function implements some basic properties of our spec.
+We'll instantiate the \texttt{CharCorruptionDataset} with our own data, and draw examples from it.
+%Remember that you can play around with your new dataset class, perhaps draw some samples from it given some text.
+
+To help you debug, if you run the following code, it'll sample a few examples from your \texttt{CharCorruptionDataset} on the pretraining dataset \texttt{wiki.txt} and print them out for you.
+\begin{lstlisting}[language=bash]
+    cd src/submission
+    python dataset.py charcorruption
+\end{lstlisting}
+
+No written answer is required for this part.
+
+% ISS
+%\part[10]
+\item \points{1f} \textbf{Pretrain, finetune, and make predictions. Budget 2 hours for training.}\\
+Now fill in the \textit{pretrain} portion of \texttt{src/submission/helper.py}, which will pretrain a model on the span corruption task. Additionally, modify your \textit{finetune} portion to handle finetuning in the case \textit{with} pretraining. In particular, if a path to a pretrained model is provided in the bash command, load this model before finetuning it on the birth-place prediction task.
+% to read from the parameters trained during pretraining, if a path to those parameters
+Pretrain your model on \texttt{wiki.txt} (which should take approximately two hours), finetune it on \texttt{NameDataset} and evaluate it. Specifically, you should be able to run the following four commands:
+
+\begin{lstlisting}[language=bash]
+# Pretrain the model
+./run.sh vanilla_pretrain
+        
+# Finetune the model
+./run.sh vanilla_finetune_with_pretrain
+        
+# Evaluate on the dev set; write to disk
+./run.sh vanilla_eval_dev_with_pretrain
+        
+# Evaluate on the test set; write to disk
+./run.sh vanilla_eval_test_with_pretrain
+\end{lstlisting}
+
+%Report the accuracy on the dev set (printed by the third command above). We expect the dev accuracy will be at least 10\%, and will expect a similar accuracy on the held out test set.
+
+%From this section, you'll submit: \texttt{vanilla.finetune.params}, \texttt{vanilla.pretrain.dev.predictions}, \\ and \texttt{vanilla.pretrain.test.predictions}.
+
+\pagebreak % :0 bad LaTeX form but I'm doing it --John
+
+% ISS
+% \part[10]
+\item \points{1g} \textbf{Research! Write and try out the \textit{synthesizer} variant (Budget 2 hours for pretraining!)}\\
+We'll now go to changing the Transformer architecture itself -- specifically, the self-attention module.
+While we've been using a self-attention scoring function based on dot products, this involves a rather intensive computation that's quadratic in the sequence length. This is because the dot product between $\ell^2$ pairs of word vectors is computed in each computation.
+\textit{Synthesized attention} \cite{tay2020synthesizer} is a very recent alternative that has potential benefits by removing this dot product (and quadratic computation) entirely.
+
+It's a promising idea, and one way for us to ask, ``What's important/right about the Transformer architecture, and where can we improve/prune aspects of it?''
+In \texttt{attention.py}, implement the \texttt{forward()} method of \texttt{SynthesizerAttention}, which implements a variant of the Synthesizer proposed in the cited paper.
+
+The provided \texttt{CausalSelfAttention} implements the following attention for each head of the multi-headed attention:
+Let $X\in \mathbb{R}^{\ell \times d}$ (where $\ell$ is the block size and $d$ is the total dimensionality, $d/h$ is the dimensionality per head.).\footnote{Note that these dimensionalities do not include the minibatch dimension.}
+Let $Q,K,V \in \mathbb{R}^{d\times d/h}$.
+Then the output of the self-attention head is 
+\begin{equation} \label{qkv_eqn}
+Y_i = \text{softmax}\bigg(\frac{(XQ_i)(XK_i)^\top}{\sqrt{d/h}}\bigg)(XV_i)
+\end{equation}
+where $Y_i\in\mathbb{R}^{\ell \times d/h}$.
+Then the output of the self-attention is a linear transformation of the concatenation of the heads:
+\begin{equation}
+Y = [Y_1;\dots;Y_h]A
+\end{equation}
+were $A \in\mathbb{R}^{d\times d}$ and $[Y_1;\dots;Y_h]\in\mathbb{R}^{\ell \times d}$.
+The code also includes dropout layers which we haven't written here.
+We suggest looking at the provided code and noting how this equation is implemented in PyTorch.
+
+Your job is to implement the following variant of attention. Instead of Equation~\ref{qkv_eqn}, implement the following in \texttt{SynthesizerAttention}:
+\begin{equation} 
+Y_i = \text{softmax}\big(\text{ReLU}(XA_i+b_1)B_i + b_2 \big)(XV_i),
+\end{equation}
+where $A_i\in\mathbb{R}^{d \times d/h}$, $B_i\in\mathbb{R}^{d/h\times \ell}$, and $V_i\in\mathbb{R}^{d\times d/h}$.\footnote{Hint: copy over the \texttt{CausalSelfAttention} class, and modify it minimally for this.}
+One way to interpret this is as follows: The term $(XQ_i)(XK_i)^\top$ is an $\ell \times \ell$ matrix of attention scores, computed as all pairs of dot products between word embeddings.
+The synthesizer variant eschews the all-pairs dot product and directly computes the $\ell \times \ell$ matrix of attention scores by mapping each $d$-dimensional vector of each head for $X$ to an $\ell$-dimesional vector of unnormalized attention weights.
+
+%In the rest of the code in the \texttt{src/} folder, make modifications to your model such that you can construct an otherwise-identical model with your new synthesizer attention , and add the ability to switch between attention types to \texttt{run.py} (marked \texttt{[part g]} in the code).
+In the rest of the code in the \texttt{src/submission/helper.py} folder, modify your model to support using either \texttt{CausalSelfAttention} or \texttt{SynthesizerAttention}. Add the ability to switch between these attention variants depending on whether ``vanilla'' (for causal self-attention) or ``synthesizer'' (for the synthesizer variant) is selected in the command line arguments (see the section marked \texttt{[part g]} in \texttt{src/submission/helper.py}). 
+
+Below are bash commands that your code should support in order to pretrain the model, finetune it, and make predictions on the dev and test sets.
+Note that the pretraining process will take approximately 2 hours.
+\begin{lstlisting}[language=bash]
+# Pretrain the model
+./run.sh synthesizer_pretrain
+        
+# Finetune the model
+./run.sh synthesizer_finetune_with_pretrain
+        
+# Evaluate on the dev set; write to disk
+./run.sh synthesizer_eval_dev_with_pretrain
+        
+# Evaluate on the test set; write to disk
+./run.sh synthesizer_eval_test_with_pretrain
+\end{lstlisting}
+
+%Report the accuracy of your synthesizer attention model on birth-place prediction on \texttt{birth\_dev.tsv} after pretraining and fine-tuning.
+
+%Save the predictions of the model on \texttt{wiki\_places\_test.tsv} to \texttt{synthesizer.pretrain.test.predictions}.
+
+%From this section, you'll submit: \texttt{synthesizer.finetune.params}, \texttt{synthesizer.pretrain.dev.predictions},\\ and \texttt{synthesizer.pretrain.test.predictions}.
+    
+% ISS
+% \begin{subparts}
+% \subpart[8]
+    %\begin{enumerate}[label=\roman*.]
+    % paritial point, manual
+    %\item (9 points) We'll score your model as to whether it gets at least 5\% accuracy on the test set, which has answers held out.
+    %\item We'll score your model using held out dataset.
+    %\item We'll score your model as to whether it gets at least 5\% accuracy on the test set, which has answers held out.
+    % ISS
+    % \subpart[2]
+    % paritial point, manual
+    % ISS skip
+    %\item (4 points) Why might the \textit{synthesizer} self-attention not be able to do, in a single layer, what the key-query-value self-attention can do?
+    %\end{enumerate}
+
+\end{enumerate}
+
+% \begin{answer}
+% % ### START CODE HERE ###
+% % ### END CODE HERE ###
+% \end{answer}
+% \end{subparts}
+% \end{parts}
+
+
+
+\textbf{Deliverables}
+
+For this assignment, please submit the following files within the src/submission directory. This includes:
+
+\begin{enumerate}
+        \item \texttt{src/submission/\_\_init\_\_.py}
+        \item \texttt{src/submission/attention.py}
+        \item \texttt{src/submission/dataset.py}
+        \item \texttt{src/submission/helper.py}
+        \item \texttt{src/submission/model.py}
+        \item \texttt{src/submission/trainer.py}
+        \item \texttt{src/submission/utils.py}
+        \item \texttt{src/submission/vanilla.model.params}
+        \item \texttt{src/submission/vanilla.nopretrain.dev.predictions}
+        \item \texttt{src/submission/vanilla.nopretrain.test.predictions}
+        \item \texttt{src/submission/vanilla.pretrain.params}
+        \item \texttt{src/submission/vanilla.finetune.params}
+        \item \texttt{src/submission/vanilla.pretrain.dev.predictions}
+        \item \texttt{src/submission/vanilla.pretrain.test.predictions}
+        \item \texttt{src/submission/synthesizer.pretrain.params}
+        \item \texttt{src/submission/synthesizer.finetune.params}
+        \item \texttt{src/submission/synthesizer.pretrain.dev.predictions}
+        \item \texttt{src/submission/synthesizer.pretrain.test.predictions}
+\end{enumerate}
+
