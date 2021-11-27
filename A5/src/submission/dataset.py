@@ -61,7 +61,7 @@ Vocabulary Specification
 Your vocabulary is to be accessible via two dictionaries:
   self.stoi: a dictionary from characters in the vocabulary to indices of type
       int
-  self.itos: a dictionary from indices of type int to characters in the
+  self.itos: a dictionary from indices of type int  to characters in the
       vocabulary
 
 Your vocabulary must have the following form: 
@@ -175,9 +175,63 @@ class CharCorruptionDataset(Dataset):
         ### [part e]: see spec above
 
         ### START CODE HERE
+
+        document = self.data[idx] # self.data is a list of documents [sentence_1, sentence_2,..., sentence_n]
+        # next is truncating the data into document of len, where len is in the
+        # interval of [4, int(self.block_size*7/8)]
+        trunc_doc = self._random_trunc(document)
+        mask_size, prefix_size = self._gen_mask_size(len(trunc_doc))
+
+        prefix, masked_content, suffix = trunc_doc[:prefix_size],\
+                                         trunc_doc[prefix_size:prefix_size+mask_size],\
+                                         trunc_doc[prefix_size+mask_size:]
+        # if not suffix: suffix=""
+        # if not prefix: prefix=""
+        pads = self._make_pads(trunc_doc)
+
+        # print(prefix)
+        # print(suffix)
+        # print(masked_content)
+
+        masked_string = prefix + self.MASK_CHAR + suffix + self.MASK_CHAR + masked_content + self.MASK_CHAR + pads
+
+        input_str = masked_string[:-1]
+        oup_str = masked_string[1:]
+
+        x = torch.tensor([self.stoi[c] for c in input_str], dtype=torch.long)
+        y = torch.tensor([self.stoi[c] for c in oup_str], dtype=torch.long)
+        return x, y
         ### END CODE HERE
 
-        raise NotImplementedError
+
+    def _random_trunc(self, doc):
+        # rand_int = int(random.randrange(3,int(self.block_size*(7/8))+1))
+        random_int = random.randint(4, int(self.block_size*(7/8)))
+        trunc_doc = doc[:random_int]
+        return trunc_doc
+
+
+    def _gen_mask_size(self, trunc_size):
+        mask_size = random.randint(0, int(trunc_size/2))
+        if mask_size > trunc_size:
+            mask_size = trunc_size
+            prefix_size = 0
+        elif mask_size < 0:
+            mask_size = 0
+            prefix_size = random.randint(0,trunc_size)
+        else:
+            remaining = trunc_size - mask_size
+            prefix_size = random.randint(0, remaining)
+        return mask_size, prefix_size
+
+    def _make_pads(self, doc):
+        assert len(doc) <= self.block_size, "Truncated document is bigger than block size."
+        if len(doc) == self.block_size:
+            return ""
+        else:
+            pads = "".join(self.PAD_CHAR for i in range(self.block_size - len(doc)))
+            return pads
+
 
 """
 Code under here is strictly for your debugging purposes; feel free to modify
@@ -210,4 +264,3 @@ if __name__ == '__main__':
     else:
         raise ValueError("Unknown dataset type in command line args: {}"
                 .format(args.dataset_type))
-
