@@ -120,6 +120,7 @@ def pretrain(pretrain_dataset, block_size, model):
         "final_tokens": 200 * len(pretrain_dataset) * block_size,
         "num_workers": 4,
     }
+    tconf = TrainerConfig(**tconf)
     trainer_obj = Trainer(model, train_dataset=pretrain_dataset, test_dataset=None, config=tconf)
     ### END CODE HERE
     return tconf, trainer_obj

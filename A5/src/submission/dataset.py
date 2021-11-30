@@ -187,16 +187,18 @@ class CharCorruptionDataset(Dataset):
                                          trunc_doc[prefix_size+mask_size:]
         # if not suffix: suffix=""
         # if not prefix: prefix=""
-        pads = self._make_pads(trunc_doc)
+        #pads = self._make_pads(trunc_doc)
 
         # print(prefix)
         # print(suffix)
         # print(masked_content)
 
-        masked_string = prefix + self.MASK_CHAR + suffix + self.MASK_CHAR + masked_content + self.MASK_CHAR + pads
+        masked_string = prefix + self.MASK_CHAR + suffix + self.MASK_CHAR + masked_content + self.MASK_CHAR #+ pads
 
-        input_str = masked_string[:-1]
-        oup_str = masked_string[1:]
+        #input_str = masked_string[:-1]
+        #oup_str = masked_string[1:]
+        input_str = masked_string[:-1] + self._make_pads(masked_string[:-1])
+        oup_str = masked_string[1:] + self._make_pads(masked_string[1:])
 
         x = torch.tensor([self.stoi[c] for c in input_str], dtype=torch.long)
         y = torch.tensor([self.stoi[c] for c in oup_str], dtype=torch.long)
