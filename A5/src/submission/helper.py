@@ -22,6 +22,7 @@ def initialize_synthesizer_model(mconf):
     ### [part g]: Make some other model here
 
     ### START CODE HERE
+    attention_model = GPT(mconf)
     ### END CODE HERE
     return attention_model
 
@@ -66,7 +67,7 @@ def finetune(reading_params_path, finetune_corpus_path, pretrain_dataset, block_
     # if reading_params_path is None this means that we are finetuning without a
     # pretrained model
     if reading_params_path:
-        model = torch.load(reading_params_path, map_location=torch.device('cpu'))
+        model.load_state_dict(torch.load(reading_params_path, map_location=torch.device('cpu')))
         tconf = {
             "max_epochs" : 10,
             "batch_size" : 256,
