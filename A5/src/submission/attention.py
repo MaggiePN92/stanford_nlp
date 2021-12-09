@@ -101,8 +101,15 @@ class SynthesizerAttention(nn.Module):
         a = self.w1(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
         v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
 
+        att = F.relu(a)@self.w2 + self.b2
 
-        att = nn.ReLU(a)@self.w2 + self.b2
+        att = att[
+                :att.shape[0],
+                :att.shape[1],
+                :att.shape[2],
+                :T
+        ]
+
         att = att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10) # todo: just use float('-inf') instead?
         att = F.softmax(att, dim=-1)
         att = self.attn_drop(att)
